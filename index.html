@@ -17,8 +17,9 @@
         body {
             background: linear-gradient(135deg, var(--bg-green) 0%, var(--accent-yellow) 100%);
             min-height: 100vh;
-            font-family: "Microsoft JhengHei", sans-serif;
+            font-family: "Microsoft JhengHei", "Heiti TC", sans-serif;
         }
+        /* TFDA 標準格式標籤 */
         .tfda-label {
             border: 2px solid black;
             background: white;
@@ -48,12 +49,12 @@
         }
         .indent { padding-left: 15px; font-weight: normal; }
         .dv-info {
-            font-size: 10px;
+            font-size: 11px;
             font-weight: normal;
             margin-top: 10px;
             border-top: 1px solid black;
             padding-top: 5px;
-            line-height: 1.2;
+            line-height: 1.4;
         }
         .ingredient-text-area {
             width: 360px;
@@ -66,28 +67,43 @@
             word-break: break-all;
             line-height: 1.5;
         }
+        #notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 12px;
+            color: white;
+            font-weight: bold;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
     </style>
 </head>
 <body class="p-4 md:p-8">
+    <div id="notification"></div>
     <div class="max-w-7xl mx-auto">
+        <!-- 頂部標題與暗號驗證 -->
         <header class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 bg-white/90 p-6 rounded-3xl shadow-md border border-green-100">
             <div>
                 <h1 class="text-3xl font-bold text-green-900 flex items-center gap-2">
                     <span class="text-4xl">🔬</span> 機能食品智慧標示系統
                 </h1>
-                <p class="text-green-700 font-medium">支援 PDF/圖片 AI 辨識 • 自動名稱與成分展開 • 內部專屬安全版</p>
+                <p class="text-green-700 font-medium">支援 PDF/圖片 AI 辨識 • 含量自動排序 • 法規百分比 (*) 處理</p>
             </div>
             <div class="w-full md:w-80">
                 <label class="block text-xs font-bold text-green-700 mb-1">🔑 內部研發授權暗號</label>
                 <input type="password" id="passCode" placeholder="請輸入公司研發暗號" 
-                       class="w-full p-2 border-2 border-green-100 rounded-xl focus:border-green-500 outline-none shadow-inner text-center font-bold tracking-widest">
+                       class="w-full p-3 border-2 border-green-100 rounded-xl focus:border-green-500 outline-none shadow-inner text-center font-bold tracking-widest transition-all">
             </div>
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <!-- 左側：原料管理 -->
             <div class="lg:col-span-7 space-y-6">
                 <div class="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                    <h2 class="text-xl font-bold text-gray-700">原料配方研發區</h2>
+                    <h2 class="text-xl font-bold text-gray-700">原料配方研發清單</h2>
                     <button onclick="addIngredient()" class="bg-green-600 text-white px-6 py-2 rounded-full font-bold hover:bg-green-700 transition shadow-lg flex items-center gap-2">
                         <i class="fa-solid fa-plus"></i> 新增原料
                     </button>
@@ -96,6 +112,7 @@
                 <div id="ingredientList" class="space-y-4"></div>
             </div>
 
+            <!-- 右側：即時標籤預覽 -->
             <div class="lg:col-span-5">
                 <div class="bg-white p-6 rounded-3xl shadow-xl border border-gray-100 sticky top-8">
                     <div class="flex p-1 bg-gray-100 rounded-2xl mb-4">
@@ -105,13 +122,14 @@
 
                     <div class="flex flex-col items-center">
                         <div class="flex gap-2 mb-4 w-full">
-                            <button onclick="copyIngredientText()" class="flex-1 bg-gray-800 text-white py-2 rounded-lg text-xs font-bold hover:bg-gray-700"><i class="fa-solid fa-copy mr-1"></i> 複製成分文字</button>
-                            <button onclick="downloadLabelImage()" class="flex-1 bg-emerald-700 text-white py-2 rounded-lg text-xs font-bold hover:bg-emerald-800"><i class="fa-solid fa-download mr-1"></i> 下載標籤圖片</button>
+                            <button onclick="copyIngredientText()" class="flex-1 bg-gray-800 text-white py-2 rounded-lg text-xs font-bold hover:bg-gray-700 transition-colors"><i class="fa-solid fa-copy mr-1"></i> 複製成分文字</button>
+                            <button onclick="downloadLabelImage()" class="flex-1 bg-emerald-700 text-white py-2 rounded-lg text-xs font-bold hover:bg-emerald-800 transition-colors"><i class="fa-solid fa-download mr-1"></i> 下載標籤圖片</button>
                         </div>
 
-                        <div id="captureArea" class="bg-white p-4 border border-gray-200 rounded-lg">
+                        <!-- 下載與預覽的區域 -->
+                        <div id="captureArea" class="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
                             <div class="font-bold text-sm mb-1 text-gray-800">【品名：產品開發範例】</div>
-                            <div class="font-bold text-xs mb-1 text-gray-600">成分欄 (由高至低排序)：</div>
+                            <div class="font-bold text-xs mb-1 text-gray-600">成分欄 (由含量高至低排序)：</div>
                             <div id="ingredientTextArea" class="ingredient-text-area">尚未新增成分...</div>
                             
                             <div class="tfda-label" id="labelPreview">
@@ -130,7 +148,8 @@
                                 <div class="label-row indent"><span>糖</span><span id="s-sugar">0</span><span id="r-sugar">0</span></div>
                                 <div class="label-row" style="border:none"><span>鈉</span><span id="s-sod">0</span><span id="r-sod">0</span></div>
                                 <div class="dv-info">
-                                    * 每日參考值：熱量 2000 大卡、蛋白質 60 公克、脂肪 60 公克、飽和脂肪 18 公克、碳水化合物 300 公克、鈉 2000 毫克。
+                                    ＊參考值未訂定<br>
+                                    每日參考值：熱量 2000 大卡、蛋白質 60 公克、脂肪 60 公克、飽和脂肪 18 公克、碳水化合物 300 公克、鈉 2000 毫克。
                                 </div>
                             </div>
                         </div>
@@ -141,16 +160,24 @@
     </div>
 
     <script>
-        // 秘密金鑰混淆處理 (Base64)
+        // API Key 安全混淆處理
         const _0x4f2a = "QUl6YVN5QjdOWWpQcFFWOWZsMXlMRXFCMHZrUkFKY1hiMDdaMkI0"; 
         let ingredients = [];
         let currentMode = '100g';
         const DV_REF = { cal: 2000, pro: 60, fat: 60, sfat: 18, carb: 300, sod: 2000 };
 
+        function showMessage(msg, isError = false) {
+            const el = document.getElementById('notification');
+            el.innerText = msg;
+            el.style.backgroundColor = isError ? '#ef4444' : '#10b981';
+            el.style.display = 'block';
+            setTimeout(() => { el.style.display = 'none'; }, 3000);
+        }
+
         function addIngredient() {
             const id = Date.now();
             ingredients.push({
-                id, name: '新成分', subIngredients: '', weight: 0,
+                id, name: '新原料', subIngredients: '', weight: 0,
                 cal: 0, pro: 0, fat: 0, sfat: 0, tfat: 0, carb: 0, sugar: 0, sod: 0
             });
             render();
@@ -164,15 +191,15 @@
                     <div class="flex justify-between items-start mb-4">
                         <div class="flex-1 mr-4">
                             <input type="text" value="${i.name}" placeholder="原料名稱" onchange="update(${i.id}, 'name', this.value)" 
-                               class="text-lg font-bold text-gray-800 border-b-2 border-dashed border-gray-200 outline-none focus:border-green-500 w-full mb-2">
-                            <input type="text" value="${i.subIngredients}" placeholder="內容物展開 (選填)" onchange="update(${i.id}, 'subIngredients', this.value)" 
-                               class="text-xs text-gray-500 border-b border-gray-100 outline-none focus:border-green-300 w-full">
+                               class="text-lg font-bold text-gray-800 border-b-2 border-dashed border-gray-200 outline-none focus:border-green-500 w-full mb-2 bg-transparent">
+                            <input type="text" value="${i.subIngredients}" placeholder="內容物展開 (如：大豆、二氧化矽)" onchange="update(${i.id}, 'subIngredients', this.value)" 
+                               class="text-xs text-gray-500 border-b border-gray-100 outline-none focus:border-green-300 w-full bg-transparent">
                         </div>
                         <div class="flex gap-2 shrink-0">
                             <button onclick="aiIdentify(${i.id})" class="bg-green-100 text-green-700 px-3 py-1.5 rounded-xl font-bold text-xs hover:bg-green-200 transition flex items-center gap-2">
                                 <i class="fa-solid fa-wand-magic-sparkles"></i> AI 辨識
                             </button>
-                            <button onclick="remove(${i.id})" class="text-red-300 hover:text-red-500 p-1"><i class="fa-solid fa-trash-can"></i></button>
+                            <button onclick="remove(${i.id})" class="text-red-300 hover:text-red-500 p-1 transition-colors"><i class="fa-solid fa-trash-can"></i></button>
                         </div>
                     </div>
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -227,6 +254,7 @@
         }
 
         function calculate() {
+            // 根據重量從高到低排序成分
             const sortedIngs = [...ingredients].sort((a, b) => b.weight - a.weight);
             const ingredientTextArea = document.getElementById('ingredientTextArea');
             if (sortedIngs.length > 0) {
@@ -247,6 +275,7 @@
             const keys = ['cal', 'pro', 'fat', 'sfat', 'tfat', 'carb', 'sugar', 'sod'];
             keys.forEach(k => {
                 const valPerServing = sumTotal[k];
+                // 鈉取整數，其餘取一位小數
                 document.getElementById('s-' + k).innerText = (k === 'sod' ? Math.round(valPerServing) : valPerServing.toFixed(1));
 
                 const rightEl = document.getElementById('r-' + k);
@@ -254,15 +283,20 @@
                     const valPer100 = (sumTotal[k] / totalW * 100);
                     rightEl.innerText = (k === 'sod' ? Math.round(valPer100) : valPer100.toFixed(1));
                 } else {
-                    rightEl.innerText = Math.round(sumTotal[k] / (DV_REF[k] || 1) * 100) + ' %';
+                    // 法規修正：反式脂肪與糖在每日參考值模式顯示「＊」
+                    if (k === 'tfat' || k === 'sugar') {
+                        rightEl.innerText = '＊';
+                    } else {
+                        const dv = DV_REF[k] || 1;
+                        rightEl.innerText = Math.round(sumTotal[k] / dv * 100) + ' %';
+                    }
                 }
             });
         }
 
         async function aiIdentify(id) {
             const code = document.getElementById('passCode').value.trim();
-            // 變更後的全新暗號驗證：hgbio8666
-            if(code !== 'hgbio8666') return alert('❌ 授權暗號錯誤或未輸入，無法啟用內部 AI 辨識功能！');
+            if(code !== 'hgbio8666') return showMessage('❌ 授權暗號錯誤，無法啟用 AI 辨識功能！', true);
             
             const key = atob(_0x4f2a);
             const fileInput = document.createElement('input');
@@ -280,26 +314,26 @@
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                                 contents: [{ parts: [
-                                    { text: "你是一位營養法規與研發專家。請分析這份規格書（圖片或PDF）。請提取以下資訊：\n1. 原料名稱 (name)\n2. 成份全展開內容 (subIngredients)，包含括號內的所有細項\n3. 每100克 (Per 100g) 的營養數據 (cal, pro, fat, sfat, tfat, carb, sugar, sod)\n\n若原始單位是每份，請換算回100g。請回傳 JSON 格式：{\"name\":\"名稱\",\"subIngredients\":\"展開成分\",\"cal\":熱量,\"pro\":蛋白質,\"fat\":脂肪,\"sfat\":飽和脂肪,\"tfat\":反式脂肪,\"carb\":碳水,\"sugar\":糖,\"sod\":鈉}" },
+                                    { text: "你是一位營養法規與研發專家。請分析這份規格書(PDF或圖)。提取：原料名稱(name)、全展開成份(subIngredients)、每100g營養數據(cal,pro,fat,sfat,tfat,carb,sugar,sod)。若非100g請自行換算。回傳 JSON 格式：{\"name\":\"\",\"subIngredients\":\"\",\"cal\":0,\"pro\":0,\"fat\":0,\"sfat\":0,\"tfat\":0,\"carb\":0,\"sugar\":0,\"sod\":0}" },
                                     { inline_data: { mime_type: file.type, data: base64 } }
                                 ] }]
                             })
                         });
                         const data = await response.json();
+                        if (data.error) throw new Error(data.error.message);
                         const text = data.candidates[0].content.parts[0].text.match(/\{.*\}/s)[0];
                         const res = JSON.parse(text);
                         
                         const i = ingredients.find(x => x.id === id);
                         if (i) {
-                            i.name = res.name || i.name;
-                            i.subIngredients = res.subIngredients || i.subIngredients;
+                            i.name = res.name || i.name; i.subIngredients = res.subIngredients || i.subIngredients;
                             i.cal = res.cal || 0; i.pro = res.pro || 0; i.fat = res.fat || 0;
                             i.sfat = res.sfat || 0; i.tfat = res.tfat || 0; i.carb = res.carb || 0;
                             i.sugar = res.sugar || 0; i.sod = res.sod || 0;
                         }
                         render();
-                        alert('✨ 辨識成功！原料名稱、全展開與數據已自動填入。');
-                    } catch (err) { alert('❌ 辨識失敗：' + err.message); }
+                        showMessage('✨ AI 辨識成功！內容已自動填入。');
+                    } catch (err) { showMessage('❌ 辨識失敗：' + err.message, true); }
                 };
                 reader.readAsDataURL(file);
             };
@@ -308,13 +342,14 @@
 
         function copyIngredientText() {
             const text = document.getElementById('ingredientTextArea').innerText;
-            navigator.clipboard.writeText(text).then(() => alert('成分文字已複製！'));
+            navigator.clipboard.writeText(text).then(() => showMessage('成分文字已複製到剪貼簿！'));
         }
 
         function downloadLabelImage() {
-            html2canvas(document.getElementById('captureArea'), { scale: 2 }).then(canvas => {
+            const area = document.getElementById('captureArea');
+            html2canvas(area, { scale: 2 }).then(canvas => {
                 const link = document.createElement('a');
-                link.download = '研發營養標示結果.png';
+                link.download = '營養標示與成分結果.png';
                 link.href = canvas.toDataURL('image/png');
                 link.click();
             });
