@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>機能食品標示研發系統</title>
+    <title>機能食品智慧標示研發系統 Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         :root {
@@ -24,8 +25,8 @@
             background: white;
             color: black;
             font-weight: bold;
-            width: 340px;
-            padding: 12px;
+            width: 360px;
+            padding: 15px;
             line-height: 1.3;
         }
         .label-title {
@@ -55,20 +56,31 @@
             padding-top: 5px;
             line-height: 1.2;
         }
+        .ingredient-text-area {
+            width: 360px;
+            font-size: 13px;
+            color: #333;
+            background: white;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 10px;
+            word-break: break-all;
+            line-height: 1.5;
+        }
     </style>
 </head>
 <body class="p-4 md:p-8">
-    <div class="max-w-6xl mx-auto">
+    <div class="max-w-7xl mx-auto">
         <!-- 頂部標題與 API 設定 -->
-        <header class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 bg-white/80 p-6 rounded-3xl shadow-sm border border-green-100">
+        <header class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 bg-white/90 p-6 rounded-3xl shadow-md border border-green-100">
             <div>
                 <h1 class="text-3xl font-bold text-green-900 flex items-center gap-2">
-                    <span class="text-4xl">🧪</span> 機能食品標示助手
+                    <span class="text-4xl">🔬</span> 機能食品智慧標示系統
                 </h1>
-                <p class="text-green-700 font-medium">支援國外規格書 AI 辨識 & TFDA 雙格式切換</p>
+                <p class="text-green-700 font-medium">支援 PDF/圖片 AI 辨識 • 自動名稱與成分展開 • 標籤圖片匯出</p>
             </div>
             <div class="w-full md:w-80">
-                <label class="block text-xs font-bold text-green-700 mb-1">GEMINI API KEY (建議使用 Gemini 3 版)</label>
+                <label class="block text-xs font-bold text-green-700 mb-1">GEMINI API KEY</label>
                 <input type="password" id="apiKey" placeholder="請在此輸入 API 金鑰" 
                        class="w-full p-2 border-2 border-green-100 rounded-xl focus:border-green-500 outline-none shadow-inner">
             </div>
@@ -77,10 +89,10 @@
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <!-- 左側：成分輸入區 -->
             <div class="lg:col-span-7 space-y-6">
-                <div class="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm">
-                    <h2 class="text-xl font-bold text-gray-700">原料配方清單</h2>
-                    <button onclick="addIngredient()" class="bg-green-600 text-white px-6 py-2 rounded-full font-bold hover:bg-green-700 transition shadow-lg">
-                        + 新增成分
+                <div class="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                    <h2 class="text-xl font-bold text-gray-700">原料配方研發區</h2>
+                    <button onclick="addIngredient()" class="bg-green-600 text-white px-6 py-2 rounded-full font-bold hover:bg-green-700 transition shadow-lg flex items-center gap-2">
+                        <i class="fa-solid fa-plus"></i> 新增原料
                     </button>
                 </div>
 
@@ -92,33 +104,48 @@
             <!-- 右側：標籤預覽區 -->
             <div class="lg:col-span-5">
                 <div class="bg-white p-6 rounded-3xl shadow-xl border border-gray-100 sticky top-8">
-                    <div class="flex p-1 bg-gray-100 rounded-2xl mb-6">
+                    <div class="flex p-1 bg-gray-100 rounded-2xl mb-4">
                         <button id="btn100" onclick="setMode('100g')" class="flex-1 py-2 rounded-xl font-bold text-sm transition-all bg-green-600 text-white shadow-md">每 100 公克</button>
                         <button id="btnDV" onclick="setMode('DV')" class="flex-1 py-2 rounded-xl font-bold text-sm transition-all text-gray-500">每日參考值 %</button>
                     </div>
 
-                    <div class="flex justify-center bg-yellow-50 p-6 rounded-2xl border-2 border-dashed border-yellow-200">
-                        <div class="tfda-label" id="labelPreview">
-                            <div class="label-title">營養標示</div>
-                            <div id="servInfo" class="text-sm mb-1">每一份量 0 公克<br>本包裝含 1 份</div>
-                            <div class="label-divider-thick" style="border-bottom: 4px solid black; margin-bottom: 2px;"></div>
-                            <div class="label-row font-bold" style="border-bottom: 2px solid black;">
-                                <span>項目</span>
-                                <span>每份</span>
-                                <span id="colRHeader">每 100 公克</span>
+                    <div class="flex flex-col items-center">
+                        <!-- 匯出控制鈕 -->
+                        <div class="flex gap-2 mb-4 w-full">
+                            <button onclick="copyIngredientText()" class="flex-1 bg-gray-800 text-white py-2 rounded-lg text-xs font-bold hover:bg-gray-700"><i class="fa-solid fa-copy mr-1"></i> 複製成分文字</button>
+                            <button onclick="downloadLabelImage()" class="flex-1 bg-emerald-700 text-white py-2 rounded-lg text-xs font-bold hover:bg-emerald-800"><i class="fa-solid fa-download mr-1"></i> 下載標籤圖片</button>
+                        </div>
+
+                        <!-- 最終生成結果容器 -->
+                        <div id="captureArea" class="bg-white p-4 border border-gray-200 rounded-lg">
+                            <div class="font-bold text-sm mb-1 text-gray-800">【品名：產品開發範例】</div>
+                            <div class="font-bold text-xs mb-1 text-gray-600">成分欄 (由高至低排序)：</div>
+                            <div id="ingredientTextArea" class="ingredient-text-area">
+                                尚未新增成分...
                             </div>
-                            <!-- 營養數據行 -->
-                            <div class="label-row"><span>熱量</span><span id="s-cal">0</span><span id="r-cal">0</span></div>
-                            <div class="label-row"><span>蛋白質</span><span id="s-pro">0</span><span id="r-pro">0</span></div>
-                            <div class="label-row"><span>脂肪</span><span id="s-fat">0</span><span id="r-fat">0</span></div>
-                            <div class="label-row"><span class="indent">飽和脂肪</span><span id="s-sfat">0</span><span id="r-sfat">0</span></div>
-                            <div class="label-row"><span class="indent">反式脂肪</span><span id="s-tfat">0</span><span id="r-tfat">0</span></div>
-                            <div class="label-row"><span>碳水化合物</span><span id="s-carb">0</span><span id="r-carb">0</span></div>
-                            <div class="label-row indent"><span>糖</span><span id="s-sugar">0</span><span id="r-sugar">0</span></div>
-                            <div class="label-row" style="border:none"><span>鈉</span><span id="s-sod">0</span><span id="r-sod">0</span></div>
                             
-                            <div class="dv-info">
-                                * 每日參考值：熱量 2000 大卡、蛋白質 60 公克、脂肪 60 公克、飽和脂肪 18 公克、碳水化合物 300 公克、鈉 2000 毫克。
+                            <div class="tfda-label" id="labelPreview">
+                                <div class="label-title">營養標示</div>
+                                <div id="servInfo" class="text-sm mb-1">每一份量 0.0 公克<br>本包裝含 1 份</div>
+                                <div class="label-divider-thick" style="border-bottom: 4px solid black; margin-bottom: 2px;"></div>
+                                <div class="label-row font-bold" style="border-bottom: 2px solid black;">
+                                    <span>項目</span>
+                                    <span>每份</span>
+                                    <span id="colRHeader">每 100 公克</span>
+                                </div>
+                                <!-- 營養數據行 -->
+                                <div class="label-row"><span>熱量</span><span id="s-cal">0</span><span id="r-cal">0</span></div>
+                                <div class="label-row"><span>蛋白質</span><span id="s-pro">0</span><span id="r-pro">0</span></div>
+                                <div class="label-row"><span>脂肪</span><span id="s-fat">0</span><span id="r-fat">0</span></div>
+                                <div class="label-row"><span class="indent">飽和脂肪</span><span id="s-sfat">0</span><span id="r-sfat">0</span></div>
+                                <div class="label-row"><span class="indent">反式脂肪</span><span id="s-tfat">0</span><span id="r-tfat">0</span></div>
+                                <div class="label-row"><span>碳水化合物</span><span id="s-carb">0</span><span id="r-carb">0</span></div>
+                                <div class="label-row indent"><span>糖</span><span id="s-sugar">0</span><span id="r-sugar">0</span></div>
+                                <div class="label-row" style="border:none"><span>鈉</span><span id="s-sod">0</span><span id="r-sod">0</span></div>
+                                
+                                <div class="dv-info">
+                                    * 每日參考值：熱量 2000 大卡、蛋白質 60 公克、脂肪 60 公克、飽和脂肪 18 公克、碳水化合物 300 公克、鈉 2000 毫克。
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -135,7 +162,7 @@
         function addIngredient() {
             const id = Date.now();
             ingredients.push({
-                id, name: '新成分原料', weight: 0,
+                id, name: '新成分', subIngredients: '', weight: 0,
                 cal: 0, pro: 0, fat: 0, sfat: 0, tfat: 0, carb: 0, sugar: 0, sod: 0
             });
             render();
@@ -144,14 +171,18 @@
         function render() {
             const list = document.getElementById('ingredientList');
             list.innerHTML = ingredients.map(i => `
-                <div class="bg-white p-6 rounded-2xl border-2 border-transparent hover:border-green-200 shadow-sm transition-all relative overflow-hidden group">
+                <div class="bg-white p-6 rounded-2xl border-2 border-transparent hover:border-green-200 shadow-sm transition-all relative overflow-hidden">
                     <div class="absolute top-0 left-0 w-1.5 h-full bg-yellow-400"></div>
                     <div class="flex justify-between items-start mb-4">
-                        <input type="text" value="${i.name}" onchange="update(${i.id}, 'name', this.value)" 
-                               class="text-lg font-bold text-gray-800 border-b-2 border-dashed border-gray-200 outline-none focus:border-green-500 w-2/3">
-                        <div class="flex gap-2">
-                            <button onclick="aiIdentify(${i.id})" class="bg-green-100 text-green-700 px-4 py-1.5 rounded-xl font-bold text-sm hover:bg-green-200 transition flex items-center gap-2">
-                                <i class="fa-solid fa-robot"></i> AI 辨識規格書
+                        <div class="flex-1 mr-4">
+                            <input type="text" value="${i.name}" placeholder="原料名稱" onchange="update(${i.id}, 'name', this.value)" 
+                               class="text-lg font-bold text-gray-800 border-b-2 border-dashed border-gray-200 outline-none focus:border-green-500 w-full mb-2">
+                            <input type="text" value="${i.subIngredients}" placeholder="內容物展開 (選填，如：大豆、二氧化矽)" onchange="update(${i.id}, 'subIngredients', this.value)" 
+                               class="text-xs text-gray-500 border-b border-gray-100 outline-none focus:border-green-300 w-full">
+                        </div>
+                        <div class="flex gap-2 shrink-0">
+                            <button onclick="aiIdentify(${i.id})" class="bg-green-100 text-green-700 px-3 py-1.5 rounded-xl font-bold text-xs hover:bg-green-200 transition flex items-center gap-2">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> AI 辨識
                             </button>
                             <button onclick="remove(${i.id})" class="text-red-300 hover:text-red-500 p-1"><i class="fa-solid fa-trash-can"></i></button>
                         </div>
@@ -163,21 +194,21 @@
                         </div>
                         <div class="bg-gray-50 p-3 rounded-xl border border-gray-100">
                             <label class="block text-[10px] font-bold text-gray-500 uppercase">熱量 (每100g)</label>
-                            <input type="number" value="${i.cal}" oninput="update(${i.id}, 'cal', this.value)" class="w-full bg-transparent text-xl font-bold outline-none">
+                            <input type="number" value="${i.cal}" oninput="update(${i.id}, 'cal', this.value)" class="w-full bg-transparent text-lg font-bold outline-none">
                         </div>
                         <div class="bg-gray-50 p-3 rounded-xl border border-gray-100">
                             <label class="block text-[10px] font-bold text-gray-500 uppercase">鈉 (mg/100g)</label>
-                            <input type="number" value="${i.sod}" oninput="update(${i.id}, 'sod', this.value)" class="w-full bg-transparent text-xl font-bold outline-none">
+                            <input type="number" value="${i.sod}" oninput="update(${i.id}, 'sod', this.value)" class="w-full bg-transparent text-lg font-bold outline-none">
                         </div>
-                        <button onclick="toggleDetails(${i.id})" class="text-xs text-green-600 font-bold hover:underline">展開/摺疊 更多項</button>
+                        <button onclick="toggleDetails(${i.id})" class="text-xs text-green-600 font-bold hover:underline flex items-center justify-center">更多營養項 <i class="fa-solid fa-chevron-down ml-1"></i></button>
                     </div>
                     <div id="details-${i.id}" class="hidden mt-4 grid grid-cols-2 md:grid-cols-3 gap-3 border-t pt-4">
-                        <div><label class="text-[10px] text-gray-400">蛋白質/100g</label><input type="number" value="${i.pro}" oninput="update(${i.id},'pro',this.value)" class="w-full border-b outline-none"></div>
-                        <div><label class="text-[10px] text-gray-400">總脂肪/100g</label><input type="number" value="${i.fat}" oninput="update(${i.id},'fat',this.value)" class="w-full border-b outline-none"></div>
-                        <div><label class="text-[10px] text-gray-400">飽和脂肪/100g</label><input type="number" value="${i.sfat}" oninput="update(${i.id},'sfat',this.value)" class="w-full border-b outline-none"></div>
-                        <div><label class="text-[10px] text-gray-400">反式脂肪/100g</label><input type="number" value="${i.tfat}" oninput="update(${i.id},'tfat',this.value)" class="w-full border-b outline-none"></div>
-                        <div><label class="text-[10px] text-gray-400">碳水/100g</label><input type="number" value="${i.carb}" oninput="update(${i.id},'carb',this.value)" class="w-full border-b outline-none"></div>
-                        <div><label class="text-[10px] text-gray-400">糖/100g</label><input type="number" value="${i.sugar}" oninput="update(${i.id},'sugar',this.value)" class="w-full border-b outline-none"></div>
+                        <div><label class="text-[10px] text-gray-400 font-bold">蛋白質/100g</label><input type="number" value="${i.pro}" oninput="update(${i.id},'pro',this.value)" class="w-full border-b outline-none"></div>
+                        <div><label class="text-[10px] text-gray-400 font-bold">總脂肪/100g</label><input type="number" value="${i.fat}" oninput="update(${i.id},'fat',this.value)" class="w-full border-b outline-none"></div>
+                        <div><label class="text-[10px] text-gray-400 font-bold">飽和脂肪/100g</label><input type="number" value="${i.sfat}" oninput="update(${i.id},'sfat',this.value)" class="w-full border-b outline-none"></div>
+                        <div><label class="text-[10px] text-gray-400 font-bold">反式脂肪/100g</label><input type="number" value="${i.tfat}" oninput="update(${i.id},'tfat',this.value)" class="w-full border-b outline-none"></div>
+                        <div><label class="text-[10px] text-gray-400 font-bold">碳水/100g</label><input type="number" value="${i.carb}" oninput="update(${i.id},'carb',this.value)" class="w-full border-b outline-none"></div>
+                        <div><label class="text-[10px] text-gray-400 font-bold">糖/100g</label><input type="number" value="${i.sugar}" oninput="update(${i.id},'sugar',this.value)" class="w-full border-b outline-none"></div>
                     </div>
                 </div>
             `).join('');
@@ -191,7 +222,7 @@
 
         function update(id, key, val) {
             const i = ingredients.find(x => x.id === id);
-            i[key] = key === 'name' ? val : (parseFloat(val) || 0);
+            i[key] = key === 'name' || key === 'subIngredients' ? val : (parseFloat(val) || 0);
             calculate();
         }
 
@@ -209,6 +240,21 @@
         }
 
         function calculate() {
+            // 排序成分 (根據添加量高低)
+            const sortedIngs = [...ingredients].sort((a, b) => b.weight - a.weight);
+            
+            // 更新成分文字欄
+            const ingredientTextArea = document.getElementById('ingredientTextArea');
+            if (sortedIngs.length > 0) {
+                const text = sortedIngs.map(i => {
+                    const base = i.name;
+                    return i.subIngredients ? `${base}(${i.subIngredients})` : base;
+                }).join('、');
+                ingredientTextArea.innerText = text + '。';
+            } else {
+                ingredientTextArea.innerText = "尚未新增成分...";
+            }
+
             const totalW = ingredients.reduce((s, i) => s + i.weight, 0) || 1;
             document.getElementById('servInfo').innerHTML = `每一份量 ${totalW.toFixed(1)} 公克<br>本包裝含 1 份`;
 
@@ -223,11 +269,9 @@
                 const servingEl = document.getElementById('s-' + k);
                 const rightEl = document.getElementById('r-' + k);
 
-                // 每份含量 (在此假設總重即為一份)
                 const valPerServing = sumTotal[k];
                 servingEl.innerText = (k === 'sod' ? Math.round(valPerServing) : valPerServing.toFixed(1));
 
-                // 右側切換欄位
                 if(currentMode === '100g') {
                     const valPer100 = (sumTotal[k] / totalW * 100);
                     rightEl.innerText = (k === 'sod' ? Math.round(valPer100) : valPer100.toFixed(1));
@@ -244,36 +288,76 @@
             
             const fileInput = document.createElement('input');
             fileInput.type = 'file';
-            fileInput.accept = 'image/*';
+            fileInput.accept = 'image/*,application/pdf';
             fileInput.onchange = async (e) => {
                 const file = e.target.files[0];
                 const reader = new FileReader();
+                
                 reader.onload = async () => {
                     const base64 = reader.result.split(',')[1];
                     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${key}`;
+                    
                     try {
                         const response = await fetch(url, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                                 contents: [{ parts: [
-                                    { text: "你是一位營養法規專家。請分析這張規格書照片。請提取『每100克 (Per 100g)』的數據。若原始單位是每份，請務必換算回100g。只回傳 JSON 格式如下：{\"cal\":熱量,\"pro\":蛋白質,\"fat\":脂肪,\"sfat\":飽和脂肪,\"tfat\":反式脂肪,\"carb\":碳水,\"sugar\":糖,\"sod\":鈉}" },
-                                    { inline_data: { mime_type: "image/jpeg", data: base64 } }
+                                    { text: "你是一位營養法規與研發專家。請分析這份規格書（圖片或PDF）。請提取以下資訊：\n1. 原料名稱 (name)\n2. 成份全展開內容 (subIngredients)，包含括號內的所有細項\n3. 每100克 (Per 100g) 的營養數據 (cal, pro, fat, sfat, tfat, carb, sugar, sod)\n\n若原始單位是每份，請換算回100g。請回傳 JSON 格式：{\"name\":\"名稱\",\"subIngredients\":\"展開成分\",\"cal\":熱量,\"pro\":蛋白質,\"fat\":脂肪,\"sfat\":飽和脂肪,\"tfat\":反式脂肪,\"carb\":碳水,\"sugar\":糖,\"sod\":鈉}" },
+                                    { inline_data: { mime_type: file.type, data: base64 } }
                                 ] }]
                             })
                         });
                         const data = await response.json();
                         const text = data.candidates[0].content.parts[0].text.match(/\{.*\}/s)[0];
                         const res = JSON.parse(text);
+                        
+                        // 找到對應的成分並更新
                         const i = ingredients.find(x => x.id === id);
-                        Object.assign(i, res);
+                        if (i) {
+                            i.name = res.name || i.name;
+                            i.subIngredients = res.subIngredients || i.subIngredients;
+                            i.cal = res.cal || 0;
+                            i.pro = res.pro || 0;
+                            i.fat = res.fat || 0;
+                            i.sfat = res.sfat || 0;
+                            i.tfat = res.tfat || 0;
+                            i.carb = res.carb || 0;
+                            i.sugar = res.sugar || 0;
+                            i.sod = res.sod || 0;
+                        }
+                        
                         render();
-                        alert('✨ 辨識成功！數值已自動換算為每 100g 並填入。');
-                    } catch (err) { alert('❌ 辨識失敗：' + err.message); }
+                        alert('✨ 辨識成功！原料名稱、全展開成分與數值已填入。');
+                    } catch (err) { 
+                        console.error(err);
+                        alert('❌ 辨識失敗：' + err.message); 
+                    }
                 };
                 reader.readAsDataURL(file);
             };
             fileInput.click();
+        }
+
+        function copyIngredientText() {
+            const text = document.getElementById('ingredientTextArea').innerText;
+            const tempInput = document.createElement('textarea');
+            tempInput.value = text;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            alert('成分文字已複製到剪貼簿！');
+        }
+
+        function downloadLabelImage() {
+            const area = document.getElementById('captureArea');
+            html2canvas(area, { scale: 2 }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = '營養標示結果.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            });
         }
 
         addIngredient();
